@@ -1,22 +1,21 @@
 <?php namespace Sixgweb\MenuItemSessionCheck;
 
 use Auth;
-use Cache;
 use Event;
 use Backend;
 use Cms\Classes\Layout;
 use Cms\Classes\Page as CmsPage;
 use System\Classes\PluginBase;
 use RainLab\Pages\Classes\Router;
-use RainLab\Pages\Classes\Page as RainlabPage;
+use RainLab\Pages\Classes\Page as StaticPage;
 
 /**
  * MenuItemSessionCheck Plugin Information File
  */
 class Plugin extends PluginBase
 {
-    
-	public $require = ['RainLab.Pages','RainLab.User'];
+
+    public $require = ['RainLab.Pages','RainLab.User'];
     
     private $userGroups; //Store user groups for subsequent checks
         
@@ -133,7 +132,7 @@ class Plugin extends PluginBase
                 $page = CmsPage::loadCached($theme, $item->reference);
                 break;
             case 'static-page':
-                $page = RainlabPage::loadCached($theme, $item->reference);
+                $page = StaticPage::loadCached($theme, $item->reference);
                 break;
             default:
                 $page = false;
