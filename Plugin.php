@@ -27,10 +27,10 @@ class Plugin extends PluginBase
     public function pluginDetails()
     {
         return [
-            'name'        => 'MenuItemSessionCheck',
-            'description' => 'No description provided yet...',
-            'author'      => '6gweb',
-            'icon'        => 'icon-leaf'
+            'name'        => 'Menu Item Session Check',
+            'description' => 'Hide menu item(s) by checking RainLab Session component on referenced CMS layout or page',
+            'author'      => 'Ryan Showers',
+            'icon'        => 'icon-sitemap'
         ];
     }
 
@@ -50,7 +50,6 @@ class Plugin extends PluginBase
      */
     public function boot()
     {
-        
         $this->setUserGroups();
         
         Event::listen('pages.menuitem.resolveItem', function($type, $item, $currentUrl, $theme){
@@ -160,7 +159,6 @@ class Plugin extends PluginBase
         
     private function getSecurity($page, $layout)
     {
-	    
 	    //Page security prioritized first
 	    if ($security = array_get($page->settings, 'components.session.security')) {
     	    return $security;
@@ -176,7 +174,6 @@ class Plugin extends PluginBase
 
     private function getAllowedUserGroups($page, $layout)
     {
-	    
 	    //Page security prioritized first
 	    if ($allowedUserGroups = array_get($page->settings, 'components.session.allowedUserGroups')) {
     	    return $allowedUserGroups;
