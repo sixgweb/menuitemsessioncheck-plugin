@@ -160,9 +160,9 @@ class Plugin extends PluginBase
     private function getSecurity($page, $layout)
     {
 	    //Page security prioritized first
-	    if ($security = array_get($page->settings, 'components.session.security')) {
-    	    return $security;
-	    }
+        if ($security = array_get($page->settings, 'components.session.security')) {
+            return $security;
+        }
 	    
 	    //No page security.  Check layout security.
         if ($security = array_get($layout->settings, 'components.session.security')) {
@@ -174,10 +174,10 @@ class Plugin extends PluginBase
 
     private function getAllowedUserGroups($page, $layout)
     {
-	    //Page security prioritized first
-	    if ($allowedUserGroups = array_get($page->settings, 'components.session.allowedUserGroups')) {
-    	    return $allowedUserGroups;
-	    }
+        //Page security prioritized first
+        if ($allowedUserGroups = array_get($page->settings, 'components.session.allowedUserGroups')) {
+            return $allowedUserGroups;
+        }
 	    
 	    //No page security.  Check layout security next.
         if ($allowedUserGroups = array_get($layout->settings, 'components.session.allowedUserGroups')) {
