@@ -43,7 +43,6 @@ class Plugin extends PluginBase
      */
     public function boot()
     {
-        $this->setUserGroups();
         $this->bindResolveItemEvent();
         $this->bindReferencesGeneratedEvent();
     }
@@ -56,6 +55,7 @@ class Plugin extends PluginBase
     private function bindResolveItemEvent(): void
     {
         Event::listen('pages.menuitem.resolveItem', function ($type, $item, $currentUrl, $theme) {
+            $this->setUserGroups();
 
             //Get the referenced CMS Page
             $page = $this->getPage($theme, $item);
@@ -149,9 +149,11 @@ class Plugin extends PluginBase
 
     private function setUserGroups()
     {
-        if (Auth::check()) {
-            $this->userGroups = Auth::getUser()->groups->lists('code');
+        if ($this->userGroups) {
+            return $this->userGroups;
         }
+
+        $this->userGroups = Auth::check() ? Auth::getUser()->groups->lists('code') : [];
     }
 
     private function getPage($theme, $item)
