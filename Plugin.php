@@ -1,12 +1,12 @@
-<?php namespace Sixgweb\MenuItemSessionCheck;
+<?php
+
+namespace Sixgweb\MenuItemSessionCheck;
 
 use Auth;
 use Event;
-use Backend;
 use Cms\Classes\Layout;
 use Cms\Classes\Page as CmsPage;
 use System\Classes\PluginBase;
-use RainLab\Pages\Classes\Router;
 use RainLab\Pages\Classes\Page as StaticPage;
 
 /**
@@ -15,10 +15,12 @@ use RainLab\Pages\Classes\Page as StaticPage;
 class Plugin extends PluginBase
 {
 
-    public $require = ['RainLab.Pages','RainLab.User'];
-    
-    private $userGroups; //Store user groups for subsequent checks
-        
+    public $require = ['RainLab.Pages', 'RainLab.User'];
+
+    private $userGroups = []; //Store user groups for subsequent checks
+    private $shouldHideIndexes = [];
+    private $counter = 0;
+
     /**
      * Returns information about this plugin.
      *
@@ -35,15 +37,6 @@ class Plugin extends PluginBase
     }
 
     /**
-     * Register method, called when the plugin is first registered.
-     *
-     * @return void
-     */
-    public function register()
-    {
-    }
-
-    /**
      * Boot method, called right before the request route.
      *
      * @return array
@@ -51,49 +44,86 @@ class Plugin extends PluginBase
     public function boot()
     {
         $this->setUserGroups();
-        
-        Event::listen('pages.menuitem.resolveItem', function($type, $item, $currentUrl, $theme){
+        $this->bindResolveItemEvent();
+        $this->bindReferencesGeneratedEvent();
+    }
+
+    /**
+     * Add event listener fired in RainLab\Pages\Classes\Menu::generateReferences()
+     *
+     * @return void
+     */
+    private function bindResolveItemEvent(): void
+    {
+        Event::listen('pages.menuitem.resolveItem', function ($type, $item, $currentUrl, $theme) {
+
+            //Get the referenced CMS Page
             $page = $this->getPage($theme, $item);
+
+            //Get the referenced CMS Layout
             $layout = $this->getLayout($page, $item, $theme);
+
+            //Get the Session component security (user)
             $security = $this->getSecurity($page, $layout);
+
+            //Get the session component allowed groups
             $allowedUserGroups = $this->getAllowedUserGroups($page, $layout);
+
             if ($this->shouldHideMenuItem($security, $allowedUserGroups)) {
+
+                //Support older Rainlab.Pages.  No longer works since 2019
                 $item->viewBag['isHidden'] = '1';
+
+                /**
+                 * $item object no longer used to generate the menu
+                 * so modifying $item->viewBag has no effect.
+                 * 
+                 * As a workaround, we'll keep an internal counter to indicate
+                 * the menu item should be hidden, then check this in the 
+                 * pages.menu.referencesGenerated event listener.
+                 */
+                $this->shouldHideIndexes[$this->counter] = true;
             }
+            $this->counter++;
         });
-
     }
 
     /**
-     * Registers any front-end components implemented in this plugin.
+     * Add event listener to RainLab\Pages\Classes\Menu::generateReferences()
      *
-     * @return array
+     * @return void
      */
-    public function registerComponents()
+    private function bindReferencesGeneratedEvent()
     {
-        return []; // Remove this line to activate
+        Event::listen('pages.menu.referencesGenerated', function (&$items) {
+            $counter = 0; //closure counter
+            $iterator = function ($menuItems) use (&$iterator, &$counter) {
+                $result = [];
+                foreach ($menuItems as $item) {
+
+                    /**
+                     * pages.menuitem.resolveItem is only fired if $item->type != 'url'
+                     * Mimic logic here.
+                     */
+                    if ($item->type != 'url') {
+                        if ($this->shouldHideIndexes[$counter] ?? false) {
+                            $item->viewBag['isHidden'] = true;
+                        }
+                        $counter++;
+                    }
+
+                    if ($item->items) {
+                        $iterator($item->items);
+                    }
+                    $result[] = $item;
+                }
+                return $result;
+            };
+            $items = $iterator($items, $counter);
+        });
     }
 
-    /**
-     * Registers any back-end permissions used by this plugin.
-     *
-     * @return array
-     */
-    public function registerPermissions()
-    {
-        return []; // Remove this line to activate
-    }
 
-    /**
-     * Registers back-end navigation items for this plugin.
-     *
-     * @return array
-     */
-    public function registerNavigation()
-    {
-        return []; // Remove this line to activate
-    }    
-    
     private function shouldHideMenuItem($security, $allowedUserGroups)
     {
         if ($security == 'user' && !Auth::check()) {
@@ -103,27 +133,27 @@ class Plugin extends PluginBase
         if ($security == 'guest' && Auth::check()) {
             return true;
         }
-        
+
         if ($allowedUserGroups && !Auth::check()) {
             return true;
         }
-        
+
         if ($allowedUserGroups && Auth::check()) {
             if (!count(array_intersect($allowedUserGroups, $this->userGroups))) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     private function setUserGroups()
     {
         if (Auth::check()) {
             $this->userGroups = Auth::getUser()->groups->lists('code');
         }
     }
-    
+
     private function getPage($theme, $item)
     {
         switch ($item->type) {
@@ -136,10 +166,10 @@ class Plugin extends PluginBase
             default:
                 $page = false;
         }
-        
+
         return $page;
     }
-    
+
     private function getLayout($page, $item, $theme)
     {
         switch ($item->type) {
@@ -152,38 +182,37 @@ class Plugin extends PluginBase
             default:
                 $layout = false;
         }
-        
-        return $layout;
 
+        return $layout;
     }
-        
+
     private function getSecurity($page, $layout)
     {
-	    //Page security prioritized first
-        if ($security = array_get($page->settings, 'components.session.security')) {
+        //Page security prioritized first
+        if ($page && $security = array_get($page->settings, 'components.session.security')) {
             return $security;
         }
-	    
-	    //No page security.  Check layout security.
-        if ($security = array_get($layout->settings, 'components.session.security')) {
+
+        //No page security.  Check layout security.
+        if ($layout && $security = array_get($layout->settings, 'components.session.security')) {
             return $security;
         }
-	   
+
         return false;
     }
 
     private function getAllowedUserGroups($page, $layout)
     {
         //Page security prioritized first
-        if ($allowedUserGroups = array_get($page->settings, 'components.session.allowedUserGroups')) {
+        if ($page && $allowedUserGroups = array_get($page->settings, 'components.session.allowedUserGroups')) {
             return $allowedUserGroups;
         }
-	    
-	    //No page security.  Check layout security next.
-        if ($allowedUserGroups = array_get($layout->settings, 'components.session.allowedUserGroups')) {
+
+        //No page security.  Check layout security next.
+        if ($layout && $allowedUserGroups = array_get($layout->settings, 'components.session.allowedUserGroups')) {
             return $allowedUserGroups;
         }
-	   
+
         return false;
-    }    
+    }
 }

@@ -1,5 +1,5 @@
 {
     "name": "sixgweb/menuitemsessioncheck-plugin",
     "type": "october-plugin",
-    "description": "Hide mneu item(s) by checking RainLab Session component for user access"
+    "description": "Hide menu item(s) by checking RainLab Session component for user access"
 }
