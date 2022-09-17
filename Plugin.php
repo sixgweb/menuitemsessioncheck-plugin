@@ -58,7 +58,9 @@ class Plugin extends PluginBase
             $this->setUserGroups();
 
             //Get the referenced CMS Page
-            $page = $this->getPage($theme, $item);
+            if (!$page = $this->getPage($theme, $item)) {
+                return;
+            }
 
             //Get the referenced CMS Layout
             $layout = $this->getLayout($page, $item, $theme);
